@@ -1,8 +1,10 @@
 package stapi
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,6 +18,7 @@ type RequestData struct {
 var requestChan = make(chan *RequestData, 1)
 var responseBody = ""
 var httpServer *httptest.Server
+var stapiClient *Client
 
 func setup() {
 	httpServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -24,6 +27,12 @@ func setup() {
 		requestChan <- &RequestData{r, string(data)}
 		fmt.Fprintf(w, responseBody)
 	}))
+	stapiClient = New("apiKey", httpServer.Client())
+	stapiClient.client.Transport = &http.Transport{
+		DialContext: func(_ context.Context, network, _ string) (net.Conn, error) {
+			return net.Dial(network, httpServer.Listener.Addr().String())
+		},
+	}
 }
 
 func teardown() {
@@ -85,13 +94,11 @@ func TestClient(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cl := New("key", httpServer.Client())
-
 	var resData struct {
 		OK bool `json:"ok"`
 	}
 	responseBody = `{"ok": true}`
-	err := cl.Get(httpServer.URL, nil, &resData)
+	err := stapiClient.Get(httpServer.URL, nil, &resData)
 	<-requestChan
 	if err != nil {
 		t.Error(err)
@@ -100,7 +107,7 @@ func TestClient(t *testing.T) {
 		t.Error("invalid struct parsing in GET")
 	}
 
-	err = cl.Post(httpServer.URL, nil, nil)
+	err = stapiClient.Post(httpServer.URL, nil, nil)
 	<-requestChan
 	if err != nil {
 		t.Error(err)
