@@ -16,6 +16,9 @@ func New(txt string) Translate {
 // Klingon returns string in hex
 // Error is thrown on unavailable characters
 func (t Translate) Klingon() (string, error) {
+	if len(t) <= 0 {
+		return "", fmt.Errorf("Cannot translate empty string")
+	}
 	str := []string{}
 
 	for i := 0; i < len(t); i++ {
