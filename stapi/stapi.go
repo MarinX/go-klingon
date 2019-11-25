@@ -38,6 +38,8 @@ func New(apiKey string, client *http.Client) *Client {
 		apiKey: apiKey,
 	}
 
+	cl.Character = &CharacterServiceOp{client: cl}
+
 	return cl
 }
 
